@@ -2,6 +2,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/ui/Logo";
+import { EcgStrip } from "@/components/ui/EcgStrip";
 import { useApp } from "@/lib/appContext";
 import { ease } from "@/lib/motion";
 import { toneIconWrap, toneText } from "@/lib/risk";
@@ -116,27 +117,12 @@ export function AnalysisScreen() {
 
 function SignalSweep() {
   const reduce = useReducedMotion();
-  const wave =
-    "M0 40 H70 l10 -22 l8 40 l9 -52 l11 60 l8 -26 H210 l10 -18 l8 30 l9 -40 l11 48 l8 -20 H360";
   return (
-    <div className="relative h-20 w-full overflow-hidden rounded-2xl bg-navy">
-      <svg viewBox="0 0 360 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        <line x1="0" y1="40" x2="360" y2="40" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-        <motion.path
-          d={wave}
-          fill="none"
-          stroke="#2DD4BF"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={reduce ? { pathLength: 1 } : { pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 2.2, ease: "easeInOut" }}
-        />
-      </svg>
+    <div className="relative h-20 w-full overflow-hidden rounded-2xl">
+      <EcgStrip variant="normal" beats={4} surface="navy" height={80} glow pulse pulseDelay={0.6} pulseDuration={2.4} />
       {!reduce && (
         <motion.div
-          className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-signal/25 to-transparent"
+          className="pointer-events-none absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-signal/25 to-transparent"
           initial={{ x: "-20%" }}
           animate={{ x: "120%" }}
           transition={{ duration: 1.8, ease: "easeInOut", repeat: Infinity }}

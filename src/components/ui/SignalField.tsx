@@ -1,14 +1,15 @@
 import { motion, useReducedMotion } from "framer-motion";
+import { ecgPath } from "@/lib/ecg";
 import { cn } from "@/lib/cn";
+
+const wave = ecgPath({ beats: 7, beatWidth: 960 / 7, height: 140, baseline: 88, amplitude: 52 }).d;
 
 /**
  * A barely-visible clinical signal motif used as a calm backdrop.
- * Two slow-drifting ECG-style lines + a faint grid. No blobs, no sci-fi.
+ * Two slow-drifting, clinically-shaped ECG lines + a faint grid. No blobs.
  */
 export function SignalField({ className }: { className?: string }) {
   const reduce = useReducedMotion();
-  const wave =
-    "M0 70 H120 l14 -36 l10 60 l12 -84 l16 96 l10 -52 H320 l14 -28 l10 44 l12 -64 l16 80 l10 -40 H640 l14 -30 l10 50 l12 -70 l16 88 l10 -46 H960";
 
   return (
     <div className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)} aria-hidden>

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { EcgStrip } from "@/components/ui/EcgStrip";
 import { ScreenShell, SafetyNote } from "@/components/ui/Bits";
 import { useApp } from "@/lib/appContext";
 import { ease, rise, stagger } from "@/lib/motion";
@@ -85,7 +86,30 @@ export function RiskResultScreen() {
 
         <p className="mt-5 max-w-3xl text-[16px] leading-relaxed text-slate-600">{r.summary}</p>
 
-        <div className="mt-6">
+        {/* recorded rhythm */}
+        <div className="mt-6 overflow-hidden rounded-2xl border border-line/70">
+          <div className="flex items-center justify-between bg-soft/50 px-4 pt-2 pb-1.5">
+            <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+              <ActivitySquare className="h-3.5 w-3.5" style={{ color: theme.fg }} /> Recorded rhythm
+            </span>
+            <span className="text-[11px] font-semibold" style={{ color: theme.fg }}>
+              {scenario.level === "red" ? "abnormal pattern" : scenario.level === "amber" ? "watch" : "sinus rhythm"}
+            </span>
+          </div>
+          <EcgStrip
+            variant={scenario.level === "red" ? "concern" : "normal"}
+            beats={5}
+            surface="none"
+            color={theme.fg}
+            gridColor="rgba(15,23,42,0.05)"
+            height={64}
+            glow
+            pulse
+            pulseDelay={0.6}
+          />
+        </div>
+
+        <div className="mt-5">
           <SafetyNote variant="inline" />
         </div>
         </motion.div>

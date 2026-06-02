@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { ECG_ICON_PATH, ECG_ICON_VIEWBOX } from "@/lib/ecg";
 import { cn } from "@/lib/cn";
 
 interface LogoProps {
@@ -14,11 +15,11 @@ export function Logo({ className, showWord = true, tone = "navy", animated = tru
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
       <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-navy shadow-soft">
-        <svg viewBox="0 0 32 32" className="h-[22px] w-[22px]" fill="none" aria-hidden>
+        <svg viewBox={ECG_ICON_VIEWBOX} className="h-[18px] w-[24px]" fill="none" aria-hidden>
           <motion.path
-            d="M3 17.5H9.5L12 11L15.5 21L18.5 14.5L20.5 17.5H29"
+            d={ECG_ICON_PATH}
             stroke="#2DD4BF"
-            strokeWidth={2.4}
+            strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
             initial={animated ? { pathLength: 0, opacity: 0 } : false}

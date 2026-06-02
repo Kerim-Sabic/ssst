@@ -3,8 +3,8 @@ import { Activity, ArrowRight, FileText, Scale } from "lucide-react";
 import { Slide } from "../Slide";
 import { SignalMark, WordReveal, Kicker } from "../pitchShared";
 import { MetricCard } from "../MetricCard";
-import { SignalLine } from "../SignalLine";
 import { Counter, BPCounter } from "../Counter";
+import { EcgStrip } from "@/components/ui/EcgStrip";
 import { StatusPill } from "@/components/ui/Badge";
 import { premiumCard, revealUp, staggerTight } from "@/lib/pitchMotion";
 
@@ -87,15 +87,22 @@ export function Slide01Title() {
             />
           </motion.div>
 
-          {/* signal strip */}
-          <div className="mx-5 mb-4 overflow-hidden rounded-2xl border border-line/80 bg-navy px-4 py-3">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">7-day signal</span>
-              <span className="text-[11px] font-semibold text-signal">trending up</span>
+          {/* ECG signal strip */}
+          <div className="mx-5 mb-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Sinus rhythm · 72 bpm</span>
+              <span className="text-[11px] font-semibold text-signal-deep">stable</span>
             </div>
-            <div className="h-10">
-              <SignalLine color="#2DD4BF" strokeWidth={2} className="h-full" pulse pulseDuration={3} pulseDelay={1.2} />
-            </div>
+            <EcgStrip
+              variant="normal"
+              beats={4}
+              surface="navy"
+              height={58}
+              glow
+              pulse
+              pulseDelay={1.2}
+              className="border border-line/15"
+            />
           </div>
 
           <div className="mx-5 mb-5 flex items-center justify-between rounded-2xl border border-stable/25 bg-stable-soft px-4 py-3">

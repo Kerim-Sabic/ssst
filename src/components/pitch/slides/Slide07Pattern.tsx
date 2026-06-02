@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
-import { ShieldCheck } from "lucide-react";
+import { Activity, ShieldCheck } from "lucide-react";
 import { Slide } from "../Slide";
 import { Kicker, WordReveal } from "../pitchShared";
 import { RiskCard } from "../RiskCard";
+import { EcgStrip } from "@/components/ui/EcgStrip";
 import { ease, revealUp } from "@/lib/pitchMotion";
 
 const signals = [
@@ -103,9 +104,36 @@ export function Slide07Pattern() {
         </div>
       </div>
 
+      {/* recorded abnormal rhythm */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 2.3, duration: 0.6, ease }}
+        className="mt-7 overflow-hidden rounded-2xl border border-concern/25 bg-navy"
+      >
+        <div className="flex items-center justify-between px-4 pt-2.5">
+          <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">
+            <Activity className="h-3.5 w-3.5 text-concern" /> Recorded rhythm · abnormal
+          </span>
+          <span className="text-[11px] font-semibold text-concern">peaked T · ST change</span>
+        </div>
+        <EcgStrip
+          variant="concern"
+          beats={5}
+          surface="none"
+          color="#F87171"
+          gridColor="rgba(248,113,113,0.12)"
+          height={72}
+          glow
+          pulse
+          pulseDelay={2.6}
+          drawDelay={2.4}
+        />
+      </motion.div>
+
       <motion.p
         variants={revealUp}
-        className="mt-8 flex max-w-3xl items-start gap-2.5 text-[14px] leading-relaxed text-muted"
+        className="mt-6 flex max-w-3xl items-start gap-2.5 text-[14px] leading-relaxed text-muted"
       >
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-signal-deep" />
         <span>

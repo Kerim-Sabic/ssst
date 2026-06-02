@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useReducedMotion } from "framer-motion";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
 import { signalDraw } from "@/lib/pitchMotion";
+import { ecgPath, type EcgVariant } from "@/lib/ecg";
 import { cn } from "@/lib/cn";
 
 interface SignalLineProps {
@@ -10,24 +11,28 @@ interface SignalLineProps {
   color?: string;
   strokeWidth?: number;
   opacity?: number;
-  /** render a glowing pulse dot travelling along the line */
+  variant?: EcgVariant;
+  beats?: number;
+  /** render a glowing pulse dot travelling along the trace */
   pulse?: boolean;
   pulseColor?: string;
   pulseDuration?: number;
   pulseDelay?: number;
 }
 
-const WAVE =
-  "M0 60 H120 l14 -34 l9 64 l11 -84 l15 96 l9 -54 H320 l14 -26 l9 46 l11 -66 l15 82 l9 -42 H640 l14 -30 l9 52 l11 -72 l15 90 l9 -46 H960";
+const VB_W = 960;
+const VB_H = 120;
 
-/** A calm clinical signal/ECG line — the deck's recurring visual motif.
- *  Optionally carries a glowing pulse that travels along the trace. */
+/** A clinically-shaped ECG trace — the deck's recurring heartbeat motif.
+ *  Optionally carries a glowing pulse that travels along the rhythm. */
 export function SignalLine({
   className,
   mode = "draw",
   color = "#14B8A6",
   strokeWidth = 1.6,
   opacity = 1,
+  variant = "normal",
+  beats = 6,
   pulse = false,
   pulseColor = "#2DD4BF",
   pulseDuration = 3.2,
@@ -37,27 +42,33 @@ export function SignalLine({
   const uid = useId().replace(/:/g, "");
   const pathRef = useRef<SVGPathElement>(null);
 
+  const d = useMemo(
+    () => ecgPath({ beats, beatWidth: VB_W / beats, height: VB_H, variant }).d,
+    [beats, variant]
+  );
+
   if (mode === "drift") {
     return (
       <svg
         className={cn("w-[200%]", className)}
-        viewBox="0 0 960 120"
+        viewBox={`0 0 ${VB_W} ${VB_H}`}
         fill="none"
         preserveAspectRatio="none"
         aria-hidden
       >
         <motion.path
-          d={WAVE}
+          d={d}
           stroke={`url(#sl-${uid})`}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
+          strokeLinejoin="round"
           initial={{ x: 0 }}
-          animate={reduce ? undefined : { x: [-480, 0] }}
+          animate={reduce ? undefined : { x: [-VB_W / 2, 0] }}
           transition={{ duration: 30, ease: "linear", repeat: Infinity }}
           style={{ opacity }}
         />
         <defs>
-          <linearGradient id={`sl-${uid}`} x1="0" y1="0" x2="960" y2="0" gradientUnits="userSpaceOnUse">
+          <linearGradient id={`sl-${uid}`} x1="0" y1="0" x2={VB_W} y2="0" gradientUnits="userSpaceOnUse">
             <stop stopColor={color} stopOpacity="0" />
             <stop offset="0.5" stopColor={color} stopOpacity="0.55" />
             <stop offset="1" stopColor={color} stopOpacity="0" />
@@ -70,14 +81,14 @@ export function SignalLine({
   return (
     <svg
       className={cn("w-full", className)}
-      viewBox="0 0 960 120"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
       fill="none"
       preserveAspectRatio="none"
       aria-hidden
     >
       <motion.path
         ref={pathRef}
-        d={WAVE}
+        d={d}
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
@@ -86,12 +97,7 @@ export function SignalLine({
         style={{ opacity }}
       />
       {pulse && !reduce && (
-        <TravelingDot
-          pathRef={pathRef}
-          color={pulseColor}
-          duration={pulseDuration}
-          delay={pulseDelay}
-        />
+        <TravelingDot pathRef={pathRef} color={pulseColor} duration={pulseDuration} delay={pulseDelay} />
       )}
     </svg>
   );

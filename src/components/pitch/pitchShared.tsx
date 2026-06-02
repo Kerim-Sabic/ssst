@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 import { ease, revealUp, wordChild, wordParent } from "@/lib/pitchMotion";
+import { ECG_ICON_PATH, ECG_ICON_VIEWBOX } from "@/lib/ecg";
 import { cn } from "@/lib/cn";
 
 /** Large CareSignal signal mark — the hero logo of the deck. */
@@ -11,11 +12,11 @@ export function SignalMark({ size = 96, className }: { size?: number; className?
       className={cn("relative grid place-items-center rounded-[28%] bg-navy shadow-lift", className)}
       style={{ width: size, height: size }}
     >
-      <svg viewBox="0 0 32 32" fill="none" style={{ width: size * 0.66, height: size * 0.66 }} aria-hidden>
+      <svg viewBox={ECG_ICON_VIEWBOX} fill="none" style={{ width: size * 0.66, height: size * 0.66 * 0.75 }} aria-hidden>
         <motion.path
-          d="M3 17.5H9.5L12 10.5L15.5 21.5L18.5 14L20.5 17.5H29"
+          d={ECG_ICON_PATH}
           stroke="#2DD4BF"
-          strokeWidth={2.2}
+          strokeWidth={1.9}
           strokeLinecap="round"
           strokeLinejoin="round"
           initial={reduce ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
