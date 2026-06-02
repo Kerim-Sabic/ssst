@@ -1,1 +1,117 @@
-# ssst
+# CareSignal AI
+
+**The daily journal that knows when something is wrong.**
+
+CareSignal AI is an adaptive chronic-disease journal that asks patients condition-specific daily
+questions, validates unusual measurements, detects concerning deterioration patterns, and turns
+scattered daily entries into clear next steps for the patient, caregiver, and doctor.
+
+> This repository is a **clickable demo prototype**. There is no backend, database, authentication,
+> real AI, or real messaging — every value is hardcoded mock data and deterministic client-side logic.
+> **CareSignal does not diagnose.** It organizes warning signs and suggests when to contact a
+> healthcare professional.
+
+---
+
+## ✨ What makes it different
+
+- **Measure Again Intelligence** — when a reading is abnormal, CareSignal first checks whether it may
+  be a technique, unit, or device error and guides the patient to repeat it correctly _before_ escalating.
+- **Your normal matters more than normal** — every entry is compared to the patient's own baseline,
+  not just generic thresholds.
+- **One pattern, three audiences** — the same signal becomes patient action steps, a caregiver alert,
+  and a doctor-ready 7-day summary.
+
+---
+
+## 🚀 Run it locally
+
+Requirements: **Node 18+** (built and tested on Node 24) and npm.
+
+```bash
+npm install
+npm run dev
+```
+
+Then open the URL Vite prints (default **http://localhost:5173**).
+
+Other scripts:
+
+```bash
+npm run build      # type-check + production build to /dist
+npm run preview    # serve the production build
+npm run typecheck  # type-check only
+```
+
+---
+
+## 🎬 The 3-minute demo flow
+
+1. **Landing** → click **Start demo**.
+2. **Onboarding** → Amina's care journal is prefilled → **Continue**.
+3. **Conditions** → Heart failure + Hypertension are preselected → **Generate my daily journal**.
+4. **Plan** → see the personalized checklist → **Start today's check-in**.
+5. **Check-in** → answer the guided questions (inputs are prefilled for a smooth demo). The final
+   blood-pressure entry of **184/118** triggers validation.
+6. **Measure Again** → rest timer + correct-technique coaching → repeated BP is still **178/112**.
+7. **Analysis** → a calm "system thinking" sequence (no fake confidence %, no diagnosis).
+8. **Result** → **RED — Concerning worsening pattern**, with patient / caregiver / doctor actions.
+9. **Timeline** → 7-day self-drawing charts vs. baseline.
+10. **Caregiver alert** → a phone-notification preview for Lejla.
+11. **Doctor summary** → an exportable clinical document (Copy / PDF / Send trigger demo toasts).
+
+### Pitch mode
+
+The **Pitch mode** button (bottom-right) lets the presenter jump between five scenarios live:
+
+| # | Scenario | Result |
+|---|----------|--------|
+| 1 | Stable day (Amina) | 🟢 Green — stable pattern |
+| 2 | Suspicious BP reading (Amina) | 🟢 Measure Again catches a false alarm |
+| 3 | Heart-failure worsening (Amina) | 🔴 Red — the flagship flow |
+| 4 | Diabetes low glucose (Emir, 54) | 🔴 Red — symptomatic hypoglycemia |
+| 5 | COPD low oxygen (Mira, 61) | 🔴 Red — respiratory worsening |
+
+---
+
+## 🧱 Tech stack
+
+- **React 18 + TypeScript** (Vite single-page app, internal state navigation)
+- **Tailwind CSS** custom design system (clinical navy + teal signal palette)
+- **Framer Motion** for all transitions, staggered reveals, and the self-drawing charts
+- **lucide-react** icons
+
+No external APIs, images, or services are used.
+
+---
+
+## 📁 Project structure
+
+```
+src/
+  App.tsx                  # screen orchestration + navigation state
+  index.css                # design tokens + global styles
+  lib/
+    types.ts               # shared TypeScript types
+    scenarios.ts           # all 5 demo scenarios (the demo content)
+    diseasePacks.ts        # 4 supported chronic-disease packs
+    checkin.ts             # the heart-failure check-in question flow
+    validation.ts          # "Measure Again" measurement-validation engine
+    risk.ts                # risk-level theming (green / amber / red)
+    motion.ts              # shared Framer Motion variants + easing
+    appContext.ts          # navigation context
+  components/
+    ui/                    # Button, Badge, Toast, LineChart, TimerRing, PhoneMock, ...
+    layout/                # TopNav, Footer, DemoPanel (pitch mode)
+    screens/               # the 11 in-flow screens
+```
+
+---
+
+## 🛟 Safety language
+
+CareSignal is intentionally careful in its wording. It uses phrases like _"concerning pattern,"_
+_"possible deterioration,"_ _"may require clinical review,"_ and _"contact your doctor."_ It never
+claims a diagnosis, never reports a fake confidence score, and never recommends changing medication.
+
+All patients, readings, devices, and clinics in this prototype are fictional.
