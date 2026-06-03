@@ -1,12 +1,14 @@
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-motion";
-import { Maximize, NotebookPen } from "lucide-react";
+import { Download, LayoutGrid, Maximize, NotebookPen, Timer } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Logo } from "@/components/ui/Logo";
 import { navigate } from "@/lib/router";
 import { ease, slideVariants } from "@/lib/pitchMotion";
+import { BuildContext } from "./buildContext";
 import { DeckBackground } from "./DeckBackground";
 import { SlideNavigation } from "./SlideNavigation";
 import { PresenterNotes } from "./PresenterNotes";
+import { SlideOverview } from "./SlideOverview";
 import { SignalMark } from "./pitchShared";
 
 import { Slide01Title } from "./slides/Slide01Title";
@@ -18,11 +20,17 @@ import { Slide06Patient } from "./slides/Slide06Patient";
 import { Slide07Pattern } from "./slides/Slide07Pattern";
 import { Slide08Workflow } from "./slides/Slide08Workflow";
 import { Slide09Why } from "./slides/Slide09Why";
+import { SlideArchitecture } from "./slides/SlideArchitecture";
+import { SlideSecurity } from "./slides/SlideSecurity";
+import { SlideSafety } from "./slides/SlideSafety";
+import { SlideRoadmap } from "./slides/SlideRoadmap";
 import { Slide10Closing } from "./slides/Slide10Closing";
 
 interface DeckSlide {
   title: string;
   note: string;
+  /** number of manual reveal steps the slide supports (0 = none) */
+  builds?: number;
   render: (ctx: { openDemo: () => void }) => JSX.Element;
 }
 
@@ -44,12 +52,13 @@ const deck: DeckSlide[] = [
   },
   {
     title: "Solution",
-    note: "The app does not ask everything. It asks what matters for that patient — try toggling the disease packs.",
+    note: "The app does not ask everything. It asks what matters for that patient — tap the disease packs to rebuild the journal live.",
     render: () => <Slide04Solution />,
   },
   {
     title: "Measure Again",
-    note: "This is our differentiator. Before escalating, CareSignal checks whether the measurement was taken correctly. Press Replay to run it live.",
+    note: "Our differentiator. Press → to step through: flagged reading → coach a correct repeat → still high → combine with the journal.",
+    builds: 3,
     render: () => <Slide05MeasureAgain />,
   },
   {
@@ -59,18 +68,40 @@ const deck: DeckSlide[] = [
   },
   {
     title: "Pattern detection",
-    note: "We are not diagnosing. We are organizing warning signs into a clear escalation moment.",
+    note: "We are not diagnosing. Press → to converge the signals into one risk picture, then reveal the abnormal rhythm.",
+    builds: 2,
     render: () => <Slide07Pattern />,
   },
   {
     title: "Workflow",
-    note: "The same daily entry becomes useful to the patient, family, and clinical team.",
+    note: "Press → to walk it: patient action → caregiver alert → doctor summary. The same entry serves all three.",
+    builds: 2,
     render: () => <Slide08Workflow />,
   },
   {
     title: "Why this wins",
-    note: "The product is simple enough for a hackathon, but strong enough to become a real chronic-care platform.",
+    note: "Simple enough for a hackathon, strong enough to become a real chronic-care platform.",
     render: () => <Slide09Why />,
+  },
+  {
+    title: "Architecture",
+    note: "The demo runs the real, deterministic logic on-device. Going to production is wiring — a secure API, encrypted store, device BLE and FHIR — not reinventing the model.",
+    render: () => <SlideArchitecture />,
+  },
+  {
+    title: "Security & privacy",
+    note: "Chronic-care data is lifelong and sensitive. Encryption everywhere, patient-controlled consent, data minimization, EU residency, and GDPR / HIPAA alignment. The prototype stores nothing.",
+    render: () => <SlideSecurity />,
+  },
+  {
+    title: "Medical safety",
+    note: "This is the credibility slide. It never diagnoses; Measure-Again cuts false alarms; flags are baseline- and guideline-anchored; red flags escalate to urgent help; humans stay in the loop; validated before any claims.",
+    render: () => <SlideSafety />,
+  },
+  {
+    title: "Roadmap",
+    note: "Given a 3-month runway: Month 1 secure backend + real devices; Month 2 caregiver/doctor apps + a clinic pilot; Month 3 validation, compliance sign-off, and a downloadable beta patients can actually use.",
+    render: () => <SlideRoadmap />,
   },
   {
     title: "Closing",
@@ -79,57 +110,130 @@ const deck: DeckSlide[] = [
   },
 ];
 
-export function PitchDeck() {
-  const [index, setIndex] = useState(0);
-  const [direction, setDirection] = useState(1);
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [intro, setIntro] = useState(true);
-  const reduce = useReducedMotion();
-  const total = deck.length;
+const INTRO_KEY = "caresignal_deck_intro_seen";
 
-  // refs so keyboard handlers always read the latest values
+function readHashIndex(): number {
+  const raw = window.location.hash.replace(/[^0-9]/g, "");
+  const n = parseInt(raw, 10);
+  if (Number.isFinite(n) && n >= 1 && n <= deck.length) return n - 1;
+  return 0;
+}
+
+export function PitchDeck() {
+  const reduce = useReducedMotion();
+  const [index, setIndex] = useState(readHashIndex);
+  const [direction, setDirection] = useState(1);
+  const [build, setBuild] = useState(0);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [overviewOpen, setOverviewOpen] = useState(false);
+  const [intro, setIntro] = useState(() => {
+    try {
+      return !window.sessionStorage.getItem(INTRO_KEY);
+    } catch {
+      return true;
+    }
+  });
+
+  const total = deck.length;
+  const current = deck[index];
+  const currentBuilds = current.builds ?? 0;
+
+  // refs for keyboard handlers (always-fresh)
   const introRef = useRef(intro);
   introRef.current = intro;
   const indexRef = useRef(index);
   indexRef.current = index;
+  const buildRef = useRef(build);
+  buildRef.current = build;
 
   const openDemo = useCallback(() => navigate("/"), []);
+  const isStandalone = typeof window !== "undefined" && !!window.__CS_STANDALONE__;
+  const downloadDeck = useCallback(() => {
+    const a = document.createElement("a");
+    a.href = "/caresignal-pitchdeck.html";
+    a.download = "CareSignal-Pitchdeck.html";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, []);
 
   const paginate = useCallback(
-    (target: number) => {
-      setIndex((cur) => {
-        const next = Math.max(0, Math.min(total - 1, target));
-        setDirection(next >= cur ? 1 : -1);
-        return next;
-      });
+    (target: number, atBuild = 0) => {
+      const next = Math.max(0, Math.min(total - 1, target));
+      setDirection(next >= indexRef.current ? 1 : -1);
+      setIndex(next);
+      setBuild(atBuild);
     },
     [total]
   );
 
-  const goNext = useCallback(() => paginate(indexRef.current + 1), [paginate]);
-  const goPrev = useCallback(() => paginate(indexRef.current - 1), [paginate]);
-  const restart = useCallback(() => paginate(0), [paginate]);
+  const advance = useCallback(() => {
+    const builds = deck[indexRef.current].builds ?? 0;
+    if (buildRef.current < builds) setBuild((b) => b + 1);
+    else paginate(indexRef.current + 1, 0);
+  }, [paginate]);
+
+  const retreat = useCallback(() => {
+    if (buildRef.current > 0) setBuild((b) => b - 1);
+    else paginate(indexRef.current - 1, deck[Math.max(0, indexRef.current - 1)].builds ?? 0);
+  }, [paginate]);
+
+  // presenter timer
+  const startRef = useRef(Date.now());
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const restart = useCallback(() => {
+    startRef.current = Date.now();
+    setElapsed(0);
+    paginate(0, 0);
+  }, [paginate]);
 
   const toggleFullscreen = useCallback(() => {
     try {
       if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
       else void document.exitFullscreen?.();
     } catch {
-      /* fullscreen not allowed — ignore */
+      /* fullscreen not allowed */
     }
   }, []);
 
-  // dismiss the intro automatically
+  // persist current slide in the URL hash
+  useEffect(() => {
+    try {
+      window.history.replaceState(null, "", `${window.location.pathname}#${index + 1}`);
+    } catch {
+      /* ignore */
+    }
+  }, [index]);
+
+  // dismiss intro (auto), remembering for the session
+  const dismissIntro = useCallback(() => {
+    setIntro(false);
+    try {
+      window.sessionStorage.setItem(INTRO_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     if (!intro) return;
-    const t = window.setTimeout(() => setIntro(false), reduce ? 350 : 1700);
+    const t = window.setTimeout(dismissIntro, reduce ? 300 : 1700);
     return () => window.clearTimeout(t);
-  }, [intro, reduce]);
+  }, [intro, reduce, dismissIntro]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (introRef.current && e.key !== "Tab") {
-        setIntro(false);
+        dismissIntro();
+        return;
+      }
+      if (e.key === "o" || e.key === "O") {
+        setOverviewOpen((o) => !o);
         return;
       }
       switch (e.key) {
@@ -137,12 +241,12 @@ export function PitchDeck() {
         case "PageDown":
         case " ":
           e.preventDefault();
-          goNext();
+          advance();
           break;
         case "ArrowLeft":
         case "PageUp":
           e.preventDefault();
-          goPrev();
+          retreat();
           break;
         case "r":
         case "R":
@@ -161,10 +265,10 @@ export function PitchDeck() {
           toggleFullscreen();
           break;
         case "Home":
-          paginate(0);
+          paginate(0, 0);
           break;
         case "End":
-          paginate(total - 1);
+          paginate(total - 1, 0);
           break;
         default:
           break;
@@ -172,9 +276,10 @@ export function PitchDeck() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goNext, goPrev, restart, openDemo, toggleFullscreen, paginate, total]);
+  }, [advance, retreat, restart, openDemo, toggleFullscreen, paginate, total, dismissIntro]);
 
-  const current = deck[index];
+  const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
+  const ss = String(elapsed % 60).padStart(2, "0");
 
   return (
     <MotionConfig reducedMotion="user">
@@ -192,16 +297,33 @@ export function PitchDeck() {
             <button onClick={openDemo} aria-label="Open live demo">
               <Logo animated={false} />
             </button>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-line/80 bg-surface/80 px-2.5 py-1 text-[11px] font-semibold text-signal-deep shadow-soft backdrop-blur-sm">
+            <span className="hidden items-center gap-1.5 rounded-full border border-line/80 bg-surface/80 px-2.5 py-1 text-[11px] font-semibold text-signal-deep shadow-soft backdrop-blur-sm sm:inline-flex">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-signal" />
               </span>
               Pitch mode
             </span>
+            <span className="tnum inline-flex items-center gap-1.5 rounded-full border border-line/80 bg-surface/80 px-2.5 py-1 text-[11px] font-semibold text-muted shadow-soft backdrop-blur-sm">
+              <Timer className="h-3 w-3" /> {mm}:{ss}
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
+            {!isStandalone && (
+              <motion.button
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={downloadDeck}
+                title="Download the deck as one self-contained file (opens offline, all animations)"
+                className="hidden h-9 items-center gap-2 rounded-xl border border-line/80 bg-surface/80 px-3.5 text-[13px] font-semibold text-navy shadow-soft backdrop-blur-sm transition-colors hover:border-signal/40 sm:inline-flex"
+              >
+                <Download className="h-4 w-4 text-signal-deep" /> Download deck
+              </motion.button>
+            )}
+            <IconButton label="Slide overview (O)" active={overviewOpen} onClick={() => setOverviewOpen((o) => !o)}>
+              <LayoutGrid className="h-4 w-4" />
+            </IconButton>
             <IconButton label="Presenter notes (P)" active={notesOpen} onClick={() => setNotesOpen((o) => !o)}>
               <NotebookPen className="h-4 w-4" />
             </IconButton>
@@ -214,15 +336,10 @@ export function PitchDeck() {
         {/* slides */}
         <div className="relative z-10 pb-28">
           <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={index}
-              custom={direction}
-              variants={slideVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              {current.render({ openDemo })}
+            <motion.div key={index} custom={direction} variants={slideVariants} initial="initial" animate="animate" exit="exit">
+              <BuildContext.Provider value={{ step: build, total: currentBuilds, set: setBuild }}>
+                {current.render({ openDemo })}
+              </BuildContext.Provider>
             </motion.div>
           </AnimatePresence>
         </div>
@@ -243,17 +360,17 @@ export function PitchDeck() {
           />
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: intro ? 0 : 1 }}
-          transition={{ duration: 0.5, delay: intro ? 0 : 0.3 }}
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: intro ? 0 : 1 }} transition={{ duration: 0.5, delay: intro ? 0 : 0.3 }}>
           <SlideNavigation
             index={index}
             total={total}
-            onPrev={goPrev}
-            onNext={goNext}
-            onJump={paginate}
+            builds={currentBuilds}
+            buildStep={build}
+            hideDemo={isStandalone}
+            nextTitle={index < total - 1 ? deck[index + 1].title : undefined}
+            onPrev={retreat}
+            onNext={advance}
+            onJump={(i) => paginate(i, 0)}
             onRestart={restart}
             onOpenDemo={openDemo}
           />
@@ -268,7 +385,14 @@ export function PitchDeck() {
           onClose={() => setNotesOpen(false)}
         />
 
-        {/* one-time cinematic intro */}
+        <SlideOverview
+          open={overviewOpen}
+          titles={deck.map((d) => d.title)}
+          index={index}
+          onJump={(i) => paginate(i, 0)}
+          onClose={() => setOverviewOpen(false)}
+        />
+
         <DeckIntro show={intro} />
       </div>
     </MotionConfig>
@@ -286,11 +410,7 @@ function DeckIntro({ show }: { show: boolean }) {
           className="fixed inset-0 z-[120] grid place-items-center bg-navy"
         >
           <div className="flex flex-col items-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, ease }}
-            >
+            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, ease }}>
               <SignalMark size={104} className="shadow-[0_30px_90px_-20px_rgba(20,184,166,0.6)]" />
             </motion.div>
             <motion.div

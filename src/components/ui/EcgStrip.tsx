@@ -1,6 +1,7 @@
-import { motion, useMotionValue, useReducedMotion } from "framer-motion";
-import { useEffect, useMemo, useRef } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { useMemo, useRef } from "react";
 import { ecgPath, type EcgVariant } from "@/lib/ecg";
+import { EcgPulseDot } from "@/components/ui/EcgPulseDot";
 import { cn } from "@/lib/cn";
 
 interface EcgStripProps {
@@ -118,59 +119,9 @@ export function EcgStrip({
           transition={{ duration: 1.3, ease: "easeInOut", delay: drawDelay }}
         />
         {pulse && !reduce && (
-          <TravelingDot pathRef={pathRef} color={color} duration={pulseDuration} delay={pulseDelay} />
+          <EcgPulseDot pathRef={pathRef} color={color} duration={pulseDuration} delay={pulseDelay} />
         )}
       </svg>
     </div>
-  );
-}
-
-function TravelingDot({
-  pathRef,
-  color,
-  duration,
-  delay,
-}: {
-  pathRef: React.RefObject<SVGPathElement>;
-  color: string;
-  duration: number;
-  delay: number;
-}) {
-  const cx = useMotionValue(-100);
-  const cy = useMotionValue(-100);
-  const visible = useMotionValue(0);
-
-  useEffect(() => {
-    const path = pathRef.current;
-    if (!path) return;
-    let len = 0;
-    try {
-      len = path.getTotalLength();
-    } catch {
-      return;
-    }
-    let raf = 0;
-    let start: number | undefined;
-    const loop = (t: number) => {
-      if (start === undefined) start = t + delay * 1000;
-      const elapsed = t - start;
-      if (elapsed >= 0) {
-        visible.set(1);
-        const p = (elapsed % (duration * 1000)) / (duration * 1000);
-        const pt = path.getPointAtLength(p * len);
-        cx.set(pt.x);
-        cy.set(pt.y);
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [pathRef, cx, cy, visible, duration, delay]);
-
-  return (
-    <>
-      <motion.circle cx={cx} cy={cy} r={11} fill={color} style={{ opacity: visible }} className="opacity-20 blur-[2px]" />
-      <motion.circle cx={cx} cy={cy} r={3.6} fill={color} style={{ opacity: visible }} />
-    </>
   );
 }

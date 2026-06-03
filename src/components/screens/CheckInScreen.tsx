@@ -1,12 +1,19 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Check, Sparkles, Sunrise } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, Sparkles, Sunrise } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Badge } from "@/components/ui/Badge";
 import { ScreenShell } from "@/components/ui/Bits";
 import { useApp } from "@/lib/appContext";
-import { heartFailureCheckIn } from "@/lib/checkin";
+import { buildCheckIn } from "@/lib/checkin";
+import {
+  validateBloodPressure,
+  validateGlucose,
+  validateSpO2,
+  validateWeightChange,
+} from "@/lib/validation";
+import type { ValidationResult } from "@/lib/types";
 import { ease } from "@/lib/motion";
 import { cn } from "@/lib/cn";
 
@@ -22,45 +29,87 @@ const toneSoft = {
   red: "bg-concern-soft border-concern/30",
 } as const;
 
+type Notice = { tone: "amber" | "red"; message: string } | null;
+
+function validateMeasurement(id: string, kind: string, value: string): ValidationResult | null {
+  if (kind === "bp") return validateBloodPressure(value);
+  if (id === "weight") return validateWeightChange(parseFloat(value), 72.4);
+  if (id === "glucose") return validateGlucose(parseFloat(value), "mg/dL");
+  if (id === "spo2") return validateSpO2(parseFloat(value));
+  return null;
+}
+
 export function CheckInScreen() {
-  const { go } = useApp();
-  const questions = heartFailureCheckIn;
+  const { go, selectedConditions } = useApp();
+  const questions = useMemo(() => buildCheckIn(selectedConditions), [selectedConditions]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [input, setInput] = useState("");
-  const [revealed, setRevealed] = useState(false); // showing feedback for current answer
+  const [revealed, setRevealed] = useState(false);
+  const [notice, setNotice] = useState<Notice>(null);
   const advancing = useRef(false);
 
-  const q = questions[index];
+  const q = questions[Math.min(index, questions.length - 1)];
   const total = questions.length;
 
   useEffect(() => {
     setInput(q.kind === "choice" ? "" : q.demoValue);
     setRevealed(false);
+    setNotice(null);
     advancing.current = false;
   }, [index, q.kind, q.demoValue]);
 
+  const proceed = () => {
+    if (index + 1 < total) setIndex((i) => i + 1);
+    else go("analysis");
+  };
+
   const commit = (value: string) => {
     if (advancing.current || !value.trim()) return;
+
+    // live measurement validation ("Measure Again Intelligence")
+    if (q.kind === "bp" || q.kind === "number") {
+      const res = validateMeasurement(q.id, q.kind, value);
+      if (res && res.verdict === "impossible") {
+        setNotice({ tone: "red", message: res.message });
+        return; // block — let the patient correct it
+      }
+
+      advancing.current = true;
+      setAnswers((a) => ({ ...a, [q.id]: value }));
+      setRevealed(true);
+
+      // BP triggers the full Measure-Again screen only when genuinely suspicious
+      if (q.triggersValidation) {
+        if (res && res.verdict === "suspicious") {
+          window.setTimeout(() => go("validation"), 720);
+        } else {
+          window.setTimeout(proceed, 950);
+        }
+        return;
+      }
+
+      // other vitals: surface coaching inline, then continue
+      if (res && res.verdict === "suspicious") {
+        setNotice({ tone: "amber", message: res.message });
+        window.setTimeout(proceed, 1500);
+      } else {
+        window.setTimeout(proceed, 950);
+      }
+      return;
+    }
+
+    // choice questions
     advancing.current = true;
     setAnswers((a) => ({ ...a, [q.id]: value }));
     setRevealed(true);
-
-    if (q.triggersValidation) {
-      window.setTimeout(() => go("validation"), 720);
-      return;
-    }
-    window.setTimeout(() => {
-      if (index + 1 < total) setIndex((i) => i + 1);
-      else go("analysis");
-    }, 950);
+    window.setTimeout(proceed, 950);
   };
 
   const progress = (index + (revealed ? 1 : 0)) / total;
 
   return (
     <ScreenShell>
-      {/* heading */}
       <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="mb-2 flex items-center gap-2 text-signal-deep">
@@ -71,7 +120,7 @@ export function CheckInScreen() {
             Good morning, Amina
           </h1>
           <p className="mt-2 max-w-xl text-[15.5px] leading-relaxed text-slate-600">
-            Let’s complete your heart failure + hypertension check-in.
+            Let’s complete your personalized check-in.
           </p>
         </div>
         <Badge tone="navy" className="tnum">
@@ -106,7 +155,6 @@ export function CheckInScreen() {
               </h2>
               {q.helper && <p className="mt-2 text-[14px] leading-relaxed text-muted">{q.helper}</p>}
 
-              {/* input / choices */}
               <div className="mt-7">
                 {q.kind === "choice" ? (
                   <div className="grid gap-2.5 sm:grid-cols-2">
@@ -141,41 +189,63 @@ export function CheckInScreen() {
                     })}
                   </div>
                 ) : (
-                  <div>
-                    <div className="flex items-stretch gap-3">
-                      <div className="relative flex-1">
-                        <input
-                          value={input}
-                          onChange={(e) => setInput(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && commit(input)}
-                          disabled={revealed}
-                          inputMode={q.kind === "bp" ? "text" : "decimal"}
-                          className="h-[60px] w-full rounded-2xl border border-line/90 bg-soft/40 px-5 text-[24px] font-bold tracking-tightish text-ink tnum outline-none transition-colors focus:border-signal/50 focus:bg-surface disabled:opacity-70"
-                          aria-label={q.prompt}
-                        />
-                        {q.unit && (
-                          <span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-muted">
-                            {q.unit}
-                          </span>
-                        )}
-                      </div>
-                      <Button
-                        size="lg"
-                        className="h-[60px] px-6"
-                        onClick={() => commit(input)}
+                  <div className="flex items-stretch gap-3">
+                    <div className="relative flex-1">
+                      <input
+                        value={input}
+                        onChange={(e) => {
+                          setInput(e.target.value);
+                          if (notice) setNotice(null);
+                        }}
+                        onKeyDown={(e) => e.key === "Enter" && commit(input)}
                         disabled={revealed}
-                        iconRight={<ArrowRight className="h-[18px] w-[18px]" />}
-                      >
-                        Save
-                      </Button>
+                        inputMode={q.kind === "bp" ? "text" : "decimal"}
+                        className={cn(
+                          "h-[60px] w-full rounded-2xl border bg-soft/40 px-5 text-[24px] font-bold tracking-tightish text-ink tnum outline-none transition-colors focus:bg-surface disabled:opacity-70",
+                          notice?.tone === "red" ? "border-concern/60 focus:border-concern" : "border-line/90 focus:border-signal/50"
+                        )}
+                        aria-label={q.prompt}
+                      />
+                      {q.unit && (
+                        <span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-muted">
+                          {q.unit}
+                        </span>
+                      )}
                     </div>
+                    <Button
+                      size="lg"
+                      className="h-[60px] px-6"
+                      onClick={() => commit(input)}
+                      disabled={revealed}
+                      iconRight={<ArrowRight className="h-[18px] w-[18px]" />}
+                    >
+                      Save
+                    </Button>
                   </div>
                 )}
               </div>
 
-              {/* feedback */}
+              {/* live validation notice (impossible / suspicious) */}
               <AnimatePresence>
-                {revealed && q.feedback && (
+                {notice && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className={cn(
+                      "mt-5 flex items-start gap-2.5 rounded-2xl border px-4 py-3",
+                      toneSoft[notice.tone]
+                    )}
+                  >
+                    <AlertTriangle className={cn("mt-0.5 h-4 w-4 shrink-0", toneClass[notice.tone])} />
+                    <p className="text-[13.5px] font-medium leading-relaxed text-ink">{notice.message}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* baseline / static feedback */}
+              <AnimatePresence>
+                {revealed && q.feedback && !notice && (
                   <motion.div
                     initial={{ opacity: 0, y: 8, height: 0 }}
                     animate={{ opacity: 1, y: 0, height: "auto" }}
@@ -202,7 +272,6 @@ export function CheckInScreen() {
           </AnimatePresence>
         </div>
 
-        {/* live context panel */}
         <ContextPanel answers={answers} currentId={q.id} />
       </div>
     </ScreenShell>

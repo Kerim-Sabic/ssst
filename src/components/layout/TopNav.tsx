@@ -33,7 +33,7 @@ export function TopNav() {
           {navLinks.map((l) => (
             <button
               key={l.label}
-              onClick={() => go(l.screen)}
+              onClick={() => (l.screen === "checkin" ? beginDemo("checkin") : go(l.screen))}
               className={cn(
                 "rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-ink hover:bg-soft",
                 screen === l.screen && "text-ink"

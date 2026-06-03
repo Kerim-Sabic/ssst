@@ -1,5 +1,6 @@
 import {
   Activity,
+  Droplet,
   Footprints,
   HeartPulse,
   Pill,
@@ -129,3 +130,43 @@ export const heartFailureCheckIn: CheckInQuestion[] = [
     triggersValidation: true,
   },
 ];
+
+/** Extra pack-specific questions appended when the patient also tracks these. */
+const glucoseQuestion: CheckInQuestion = {
+  id: "glucose",
+  icon: Droplet,
+  prompt: "What is your glucose today?",
+  helper: "Confirm the meter unit is mg/dL.",
+  kind: "number",
+  unit: "mg/dL",
+  demoValue: "210",
+};
+
+const spo2Question: CheckInQuestion = {
+  id: "spo2",
+  icon: Wind,
+  prompt: "What is your oxygen saturation now?",
+  helper: "Warm hands, finger still, wait for the reading to settle.",
+  kind: "number",
+  unit: "%",
+  demoValue: "90",
+};
+
+/**
+ * Compose the daily check-in from the conditions CareSignal is watching.
+ * The flagship heart-failure + hypertension selection reproduces the original
+ * 7-question flow exactly; adding Diabetes / COPD appends the relevant vital.
+ */
+export function buildCheckIn(selected: string[]): CheckInQuestion[] {
+  const has = (id: string) => selected.includes(id);
+  const core = heartFailureCheckIn.filter((q) => q.id !== "bp");
+  const bp = heartFailureCheckIn.find((q) => q.id === "bp")!;
+
+  const out: CheckInQuestion[] = [];
+  if (has("heart-failure")) out.push(...core);
+  if (has("diabetes")) out.push(glucoseQuestion);
+  if (has("copd")) out.push(spo2Question);
+  if (has("hypertension") || has("heart-failure")) out.push(bp);
+
+  return out.length ? out : [...core, bp];
+}

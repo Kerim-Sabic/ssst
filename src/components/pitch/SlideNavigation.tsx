@@ -6,6 +6,10 @@ import { cn } from "@/lib/cn";
 interface SlideNavigationProps {
   index: number;
   total: number;
+  builds?: number;
+  buildStep?: number;
+  nextTitle?: string;
+  hideDemo?: boolean;
   onPrev: () => void;
   onNext: () => void;
   onJump: (i: number) => void;
@@ -16,6 +20,10 @@ interface SlideNavigationProps {
 export function SlideNavigation({
   index,
   total,
+  builds = 0,
+  buildStep = 0,
+  nextTitle,
+  hideDemo,
   onPrev,
   onNext,
   onJump,
@@ -41,6 +49,18 @@ export function SlideNavigation({
             </motion.span>
             <span className="text-muted">/ {String(total).padStart(2, "0")}</span>
           </div>
+
+          {builds > 0 && (
+            <span className="hidden items-center gap-1 rounded-full border border-signal/30 bg-signal-50/70 px-2 py-1 text-[10px] font-semibold text-signal-deep sm:inline-flex">
+              {Array.from({ length: builds + 1 }).map((_, i) => (
+                <span
+                  key={i}
+                  className={cn("h-1.5 w-1.5 rounded-full transition-colors", i <= buildStep ? "bg-signal-deep" : "bg-signal/30")}
+                />
+              ))}
+              <span className="ml-0.5">build</span>
+            </span>
+          )}
 
           <div className="hidden items-center gap-1.5 rounded-full border border-line/70 bg-surface/70 px-2 py-1.5 shadow-soft backdrop-blur-sm sm:flex">
             {Array.from({ length: total }).map((_, i) => (
@@ -70,6 +90,12 @@ export function SlideNavigation({
 
         {/* actions */}
         <div className="flex items-center gap-2">
+          {nextTitle && (
+            <span className="mr-1 hidden items-center gap-1.5 text-[11px] text-muted xl:flex">
+              <span className="text-slate-400">Next ·</span>
+              <span className="font-semibold text-slate-500">{nextTitle}</span>
+            </span>
+          )}
           <span className="mr-1 hidden items-center gap-1 text-[11px] text-muted lg:flex">
             <kbd className="rounded border border-line/80 bg-surface/80 px-1.5 py-0.5 font-semibold text-slate-500">←</kbd>
             <kbd className="rounded border border-line/80 bg-surface/80 px-1.5 py-0.5 font-semibold text-slate-500">→</kbd>
@@ -82,14 +108,16 @@ export function SlideNavigation({
           >
             <RotateCcw className="h-4 w-4" /> Restart
           </motion.button>
-          <motion.button
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onOpenDemo}
-            className="group inline-flex h-10 items-center gap-2 rounded-xl bg-navy px-4 text-[13px] font-semibold text-white shadow-soft transition-colors hover:bg-navy-600"
-          >
-            <PlayCircle className="h-4 w-4 text-signal transition-transform group-hover:scale-110" /> Open live demo
-          </motion.button>
+          {!hideDemo && (
+            <motion.button
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenDemo}
+              className="group inline-flex h-10 items-center gap-2 rounded-xl bg-navy px-4 text-[13px] font-semibold text-white shadow-soft transition-colors hover:bg-navy-600"
+            >
+              <PlayCircle className="h-4 w-4 text-signal transition-transform group-hover:scale-110" /> Open live demo
+            </motion.button>
+          )}
           <div className="flex items-center">
             <NavArrow direction="prev" onClick={onPrev} disabled={index === 0} />
             <NavArrow direction="next" onClick={onNext} disabled={index === total - 1} />

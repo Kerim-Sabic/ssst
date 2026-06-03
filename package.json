@@ -5,12 +5,15 @@
   "description": "CareSignal AI — adaptive chronic-disease journal demo prototype",
   "type": "module",
   "scripts": {
+    "predev": "npm run build:deck",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:deck": "vite build --config vite.deck.config.ts",
+    "build": "npm run build:deck && tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
@@ -22,9 +25,11 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "playwright": "^1.60.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vite-plugin-singlefile": "^2.3.3"
   }
 }
